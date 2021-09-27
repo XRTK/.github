@@ -1,5 +1,8 @@
 {
     "name": "XRTK Organization Workflow",
     "description": "XRTK Organization CI workflow template.",
-    "iconName": "xrtk"
+    "iconName": "xrtk",
+    "categories": [
+        "C#"
+    ]
 }
