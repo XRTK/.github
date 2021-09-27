@@ -1,4 +1,4 @@
-name: XRTK CI
+name: XRTK UPM CI
 
 on:
   push:
