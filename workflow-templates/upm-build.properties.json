@@ -1,6 +1,6 @@
 {
-    "name": "XRTK Organization Workflow",
-    "description": "XRTK Organization CI workflow template.",
+    "name": "XRTK UPM Workflow",
+    "description": "XRTK CI workflow template for upm projects.",
     "iconName": "xrtk",
     "categories": [
         "C#"
