@@ -107,13 +107,14 @@ jobs:
   build:
     needs: setup
     runs-on: self-hosted
-    stragegy:
+    strategy:
       matrix:
         build-target: [StandaloneWindows64, WSAPlayer, Android]
 
     steps:
       - uses: actions/checkout@v2
-        submodules: true
+        with:
+          submodules: true
 
       - uses: xrtk/unity-action@main
         with:
