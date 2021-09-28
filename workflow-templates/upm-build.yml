@@ -110,6 +110,7 @@ jobs:
     strategy:
       matrix:
         build-target: [StandaloneWindows64, WSAPlayer, Android]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v2
