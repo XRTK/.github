@@ -1,4 +1,4 @@
-name: XRTK UPM CI
+name: XRTK CI
 
 on:
   push:
@@ -11,15 +11,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup:
+  validate:
     runs-on: self-hosted
     outputs:
-      editor-path: ${{ steps.valiate-unity-installation.editor-path }}
-      project-path: ${{ steps.validate-unity-installation.project-path }}
+      editor-path: ${{ steps.validate-project-setup.outputs.editor-path }}
+      project-path: ${{ steps.validate-project-setup.outputs.project-path }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
 
-      - id: validate-unity-installation
+      - id: validate-project-setup
         name: 'Unity Installation Validation'
         run: |
           Write-Host "Unity Installation Validation"
@@ -34,7 +36,7 @@ jobs:
 
           $projectPath = (Get-Item $versionFile).Directory.Parent.FullName
           Write-Host "Unity project path: `"$projectPath`""
-          echo "::set-output name=project-path::$projectPath"
+          Write-Host "::set-output name=project-path::$projectPath"
 
           $version = Get-Content -Path $versionFile
           $pattern = '(?<version>(?:(?<major>\d+)\.)?(?:(?<minor>\d+)\.)?(?:(?<patch>\d+[fab]\d+)\b))|((?:\((?<revision>\w+))\))'
@@ -101,25 +103,73 @@ jobs:
           }
 
           Write-Host "Unity Editor path: `"$editorPath`""
-          echo "::set-output name=editor-path::$editorPath"
+          Write-Host "::set-output name=editor-path::$editorPath"
           exit 0
         shell: powershell
+
+      - uses: xrtk/unity-action@main
+        name: 'project-validation'
+        with:
+          name: 'project-validation'
+          editor-path: '${{ steps.validate-project-setup.outputs.editor-path }}'
+          project-path: '${{ steps.validate-project-setup.outputs.project-path }}'
+          args: '-quit -batchmode -executeMethod XRTK.Editor.BuildPipeline.UnityPlayerBuildTools.ValidateProject'
+
+      - uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: 'Validation-Results'
+          path: '${{ steps.validate-project-setup.outputs.project-path }}\Builds\Logs'
+
+      - name: cleanup
+        run: |
+          $logDirectory = "${{ steps.validate-project-setup.outputs.project-path }}\Builds"
+
+          if (Test-Path -Path $logDirectory) {
+            Remove-Item $logDirectory -Force -Recurse
+          }
+        shell: powershell
+
   build:
-    needs: setup
+    needs: validate
     runs-on: self-hosted
     strategy:
       matrix:
-        build-target: [StandaloneWindows64, WSAPlayer, Android]
-      fail-fast: false
+        build-target: [StandaloneWindows64, WSAPlayer, Android, Lumin]
+      max-parallel: 1
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: xrtk/unity-action@main
+        name: '${{ matrix.build-target }}-Tests'
         with:
-          submodules: true
+          name: '${{ matrix.build-target }}-Tests'
+          editor-path: '${{ needs.validate.outputs.editor-path }}'
+          project-path: '${{ needs.validate.outputs.project-path }}'
+          build-target: '${{ matrix.build-target }}'
+          args: '-batchmode -runEditorTests'
 
       - uses: xrtk/unity-action@main
+        name: '${{ matrix.build-target }}-Build'
         with:
-          name: 'validation'
-          editor-path: ${{ needs.setup.outputs.editor-path }}
-          project-path: ${{ needs.setup.outputs.project-path }}
-          args: '-quit -batchmode -executeMethod XRTK.Editor.BuildPipeline.UnityPlayerBuildTools.ValidateProject'
+          name: '${{ matrix.build-target }}-Build'
+          editor-path: '${{ needs.validate.outputs.editor-path }}'
+          project-path: '${{ needs.validate.outputs.project-path }}'
+          build-target: '${{ matrix.build-target }}'
+          args: '-quit -batchmode -executeMethod XRTK.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild'
+
+      - name: 'zip artifacts'
+        if: always()
+        run: |
+          $artifacts = "${{ needs.validate.outputs.project-path }}\Builds"
+
+          if (Test-Path -Path $artifacts) {
+            Compress-Archive -Path "$artifacts\*" -DestinationPath ${{ github.workspace }}\${{ matrix.build-target }}-Artifacts.zip
+            Remove-Item $artifacts -Force -Recurse
+          }
+        shell: powershell
+
+      - uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: '${{ matrix.build-target }}-Artifacts'
+          path: '${{ github.workspace }}\${{ matrix.build-target }}-Artifacts.zip'
