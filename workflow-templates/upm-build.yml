@@ -2,9 +2,10 @@ name: XRTK CI
 
 on:
   push:
-    branches: [ $default-branch ]
+    branches: [ main, development ]
   pull_request:
-    branches: [ $default-branch ]
+    branches:
+      - '*'
 
 concurrency:
   group: ${{ github.head_ref }}
