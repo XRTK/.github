@@ -1,0 +1,8 @@
+{
+    "name": "XRTK CI Workflow",
+    "description": "XRTK CI workflow template for unity projects.",
+    "iconName": "xrtk",
+    "categories": [
+        "C#"
+    ]
+}

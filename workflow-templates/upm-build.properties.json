@@ -1,8 +1,0 @@
-{
-    "name": "XRTK CI Workflow (UPM)",
-    "description": "XRTK CI workflow template for upm projects.",
-    "iconName": "xrtk",
-    "categories": [
-        "C#"
-    ]
-}
