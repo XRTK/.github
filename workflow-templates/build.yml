@@ -23,10 +23,11 @@ jobs:
           submodules: true
 
       - id: unity-validate
+        name: Unity Editor Validation
         uses: xrtk/unity-validate@main
 
       - uses: xrtk/unity-action@main
-        name: 'project-validation'
+        name: Project Validation
         with:
           name: 'project-validation'
           editor-path: '${{ steps.unity-validate.outputs.editor-path }}'
@@ -34,12 +35,13 @@ jobs:
           args: '-quit -batchmode -executeMethod XRTK.Editor.BuildPipeline.UnityPlayerBuildTools.ValidateProject'
 
       - uses: actions/upload-artifact@v2
+        name: Upload Artifacts
         if: always()
         with:
           name: 'Validation-Results'
           path: '${{ steps.unity-validate.outputs.project-path }}\Builds\Logs'
 
-      - name: cleanup
+      - name: Cleanup Job
         run: |
           $logDirectory = "${{ steps.unity-validate.outputs.project-path }}\Builds"
 
@@ -75,7 +77,7 @@ jobs:
           build-target: '${{ matrix.build-target }}'
           args: '-quit -batchmode -executeMethod XRTK.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild'
 
-      - name: 'zip artifacts'
+      - name: Zip Artifacts
         if: always()
         run: |
           $artifacts = "${{ needs.validate.outputs.project-path }}\Builds"
@@ -87,7 +89,27 @@ jobs:
         shell: powershell
 
       - uses: actions/upload-artifact@v2
+        name: Upload Artifacts
         if: always()
         with:
           name: '${{ matrix.build-target }}-Artifacts'
           path: '${{ github.workspace }}\${{ matrix.build-target }}-Artifacts.zip'
+
+  publish:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: build
+    runs-on:  ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: upm subtree split
+        run: |
+          $packageDir = Get-Item -Path "**/Packages/com.*" | Select-Object -ExpandProperty FullName
+          $packageDir = $packageDir.replace('${{ github.workspace }}/','')
+          Write-Host $packageDir
+          git subtree split --prefix="$packageDir" -b upm
+          git push -u origin upm --force
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
